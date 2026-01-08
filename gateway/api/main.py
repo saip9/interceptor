@@ -2,7 +2,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import logging
+import sys
 import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config.database import init_databases, close_databases, get_redis_client
+
+
 
 # Set up logging
 
@@ -37,13 +44,20 @@ async def startup_event():
     logger.info("=" * 50)
     logger.info("Interceptor Gateway Starting Up")
     logger.info("=" * 50)
-    # TODO: Initialize database connections
-    logger.info("Gateway ready to accept requests")
+    
+    try:
+        # Initialize database connections
+        init_databases()
+        logger.info("Gateway ready to accept requests")
+    except Exception as e:
+        logger.error(f"Failed to start gateway: {e}")
+        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run when the application shuts down"""
     logger.info("Interceptor Gateway Shutting Down")
+    close_databases()
     # TODO: Close database connections
 
 
@@ -61,12 +75,37 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
+    """Health check endpoint - tests all database connections"""
+    health_status = {
         "status": "healthy",
         "service": "interceptor-gateway",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "databases": {}
     }
+    
+    # Check Redis (INSIDE the function)
+    try:
+        redis_client = get_redis_client()
+        logging.debug("Pinging Redis...")
+        redis_client.ping()
+        health_status["databases"]["redis"] = "connected"   
+    except Exception as e:
+        health_status["databases"]["redis"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+
+    # Check Cassandra
+    try:
+        from config.database import get_cassandra_session
+        session = get_cassandra_session()
+        session.execute("SELECT release_version FROM system.local")
+        health_status["databases"]["cassandra"] = "connected"
+    except Exception as e:
+        health_status["databases"]["cassandra"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # Return at the end of the function
+    return health_status
+
 
 @app.get("/api/test")
 async def test_endpoint(request: Request):
@@ -78,4 +117,3 @@ async def test_endpoint(request: Request):
         "method": request.method,
         "timestamp": datetime.utcnow().isoformat()
     }
-
