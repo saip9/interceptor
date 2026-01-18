@@ -4,6 +4,7 @@ services:
       context: .
     environment:
       NODE_ENV: production
+      BWS_ACCESS_TOKEN: ${BWS_ACCESS_TOKEN}
     ports:
       - 3000:3000
       

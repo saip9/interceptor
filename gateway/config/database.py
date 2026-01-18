@@ -1,4 +1,6 @@
 import os
+import pymysql
+from pymysql.cursors import DictCursor
 from cassandra.cluster import Cluster
 import redis
 import logging
@@ -68,6 +70,23 @@ def get_cassandra_session():
     return cassandra_session
 
 
+
+# SQL
+
+def get_mysql_connection():
+    connection = pymysql.connect(
+        host=os.getenv("MYSQL_HOST"),
+        port =int(os.getenv("MYSQL_PORT")),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DATABASE"),
+        cursorclass=DictCursor,
+        autocommit = True
+
+    )
+
+    return connection
+
 # Initialize Redis and Cassandra Connection
 
 def init_databases():
@@ -75,7 +94,13 @@ def init_databases():
 
     try:
         get_redis_client()
+
         get_cassandra_session()
+
+        mysql_connection = get_mysql_connection
+      #  mysql_connection.close()
+        logger.info("Connected to MySQL")
+        logger.info("All databases initialized")
 
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")

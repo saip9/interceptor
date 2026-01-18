@@ -10,7 +10,7 @@ ARG NODE_VERSION=24.12.0
 
 ################################################################################
 # Use node image for base image for all stages.
-FROM node:${NODE_VERSION}-alpine as base
+FROM node:${NODE_VERSION}-trixie as base
 
 # Set working directory for all build stages.
 WORKDIR /usr/src/app
@@ -68,5 +68,30 @@ COPY --from=build /usr/src/app/.next ./.next
 # Expose the port that the application listens on.
 EXPOSE 3000
 
+
+
+# Install dependencies
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+  apt-get install -y \
+  ca-certificates \
+  curl \
+  jq \
+  unzip && \
+  rm -rf /var/lib/apt/lists/*
+
+# Download bws
+RUN curl -LO https://github.com/bitwarden/sdk/releases/download/bws-v1.0.0/bws-x86_64-unknown-linux-gnu-1.0.0.zip && \
+  unzip bws-x86_64-unknown-linux-gnu-1.0.0.zip -d /usr/local/bin/ && \
+  rm -f bws-x86_64-unknown-linux-gnu-1.0.0.zip
+
+# Add anything else you will need to your image
+
+# Entrypoint script will retrieve secrets at runtime
+COPY ./entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Run the application.
-CMD npm start
+USER node
+CMD ["npm", "start"]

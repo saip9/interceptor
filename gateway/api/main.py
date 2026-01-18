@@ -103,6 +103,17 @@ async def health_check():
         health_status["databases"]["cassandra"] = f"error: {str(e)}"
         health_status["status"] = "degraded"
     
+    # Check MySQL
+
+    try:
+        from config.database import get_mysql_connection
+        connection = get_mysql_connection
+        #connection.close()
+        health_status["databases"]["mysql"] = "connected"
+    except Exception as e:
+        health_status["databases"]["mysql"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+
     # Return at the end of the function
     return health_status
 

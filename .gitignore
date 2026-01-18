@@ -34,3 +34,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 __pycache__
+
+
+
+# Added by cargo
+
+/target
+
+# venv
+venv
